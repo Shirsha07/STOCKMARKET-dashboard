@@ -99,15 +99,40 @@ if not data.empty:
         plot_moving_averages(data, moving_averages)
 
 # Portfolio Correlation
-st.sidebar.header("Portfolio Analysis")
-portfolio_file = st.sidebar.file_uploader("Upload Portfolio (CSV or Excel)")
-if portfolio_file:
-    portfolio = pd.read_csv(portfolio_file) if portfolio_file.name.endswith("csv") else pd.read_excel(portfolio_file)
-    tickers = portfolio['Ticker'].tolist()
-    st.subheader("Portfolio Data")
-    st.write(portfolio)
+st.sidebar.subheader("📊 Portfolio Analysis")
+uploaded_file = st.sidebar.file_uploader("Upload Portfolio (CSV or Excel)", type=["csv", "xlsx"])
 
-    portfolio_data = {t: fetch_stock_data(t, start_date, end_date)['Close'] for t in tickers}
-    portfolio_df = pd.DataFrame(portfolio_data)
-    st.subheader("Correlation Matrix")
-    plot_correlation_matrix(portfolio_df)
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            portfolio = pd.read_csv(uploaded_file)
+        else:
+            portfolio = pd.read_excel(uploaded_file)
+
+        # Check for required column
+        if 'Symbol' not in portfolio.columns:
+            st.sidebar.error("❌ Uploaded file must contain a 'Symbol' column with stock symbols like INFY.NS or TCS.NS")
+            st.stop()
+
+        tickers = portfolio['Symbol'].dropna().unique().tolist()
+
+        st.subheader("📁 Portfolio Overview")
+        st.write(portfolio)
+
+        st.subheader("📈 Portfolio Stock Charts")
+        for symbol in tickers:
+            st.markdown(f"### {symbol}")
+            data = yf.download(symbol, period="6mo", interval="1d")
+            fig = go.Figure(data=[go.Candlestick(
+                x=data.index,
+                open=data['Open'],
+                high=data['High'],
+                low=data['Low'],
+                close=data['Close']
+            )])
+            fig.update_layout(title=f"{symbol} - 6 Month Candlestick Chart", xaxis_title="Date", yaxis_title="Price")
+            st.plotly_chart(fig, use_container_width=True)
+
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Error processing file: {e}")
+
