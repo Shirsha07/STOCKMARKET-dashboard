@@ -6,7 +6,7 @@ import plotly.express as px
 from datetime import date
 
 # App Title
-st.title("Stock Market Visualizer with Enhanced Analytics")
+st.title("Interactive Stock Market Dashboard")
 st.sidebar.title("Options")
 
 # Helper Functions
