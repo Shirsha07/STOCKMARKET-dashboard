@@ -9,8 +9,14 @@ from datetime import date, datetime, timedelta
 st.title("Interactive Stock Market Dashboard")
 st.sidebar.title("Options")
 
-symbols = [
-    'ADANIENSOL.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'ADANITRANS.NS', 'ALKEM.NS',
+# Helper Functions
+def fetch_stock_data(ticker, start_date, end_date):
+    """Fetch stock data using yfinance."""
+    stock = yf.Ticker(ticker)
+    return stock.history(start=start_date, end=end_date)
+def get_top_gainers_losers():
+    # List of stock symbols you want to track (replace with your list)
+    symbols = ['ADANIENSOL.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'ADANITRANS.NS', 'ALKEM.NS',
     'AMBUJACEM.NS', 'APLLTD.NS', 'APOLLOHOSP.NS', 'AUROPHARMA.NS', 'AXISBANK.NS',
     'BAJAJ-AUTO.NS', 'BAJAJFINSV.NS', 'BAJFINANCE.NS', 'BALKRISIND.NS', 'BANDHANBNK.NS',
     'BANKBARODA.NS', 'BATAINDIA.NS', 'BEL.NS', 'BHARATFORG.NS', 'BHARTIARTL.NS',
@@ -40,77 +46,57 @@ symbols = [
     'ZYDUSLIFE.NS'
 ]
 
-# Helper Functions
-def fetch_stock_data(ticker, start_date, end_date):
-    """Fetch stock data using yfinance."""
-    stock = yf.Ticker(ticker)
-    return stock.history(start=start_date, end=end_date)
-def get_top_movers(symbols, start_date, end_date):
-    gainers = []
-    losers = []
-    
+    # Dictionary to store stock data
+    data = {}
+
+    # Fetch data for today's date (1-minute intervals)
     for symbol in symbols:
-        data = fetch_stock_data(symbol, start_date, end_date)
-        if len(data) > 0:  # Make sure we have data for the symbol
-            # Calculate percentage change between the first and last closing prices
-            change = (data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0] * 100
-            # Append to gainers or losers list
-            if change > 0:
-                gainers.append((symbol, data['Close'].iloc[-1], change))
-            else:
-                losers.append((symbol, data['Close'].iloc[-1], change))
-    
-    # Sort by percentage change
-    gainers.sort(key=lambda x: x[2], reverse=True)  # Sort by change percentage (descending)
-    losers.sort(key=lambda x: x[2])  # Sort by change percentage (ascending)
-    
-    return gainers[:5], losers[:5]  # Top 5 gainers and losers
+        stock_data = yf.download(symbol, period="1d", interval="1m")  # Fetching 1-minute intervals
+        data[symbol] = stock_data
 
-# Set dynamic date range (last 5 days, including today)
-end_date = datetime.today().strftime('%Y-%m-%d')
-start_date = (datetime.today() - timedelta(days=5)).strftime('%Y-%m-%d')
+    # List to store calculated gains and losses
+    gainers_losers = []
 
-top_gainers, top_losers = get_top_movers(symbols, start_date, end_date)
+    # Calculate the percentage change from the first price to the last price of the day
+    for symbol, stock_data in data.items():
+        if not stock_data.empty:
+            open_price = stock_data.iloc[0]['Open']
+            close_price = stock_data.iloc[-1]['Close']
+            percent_change = ((close_price - open_price) / open_price) * 100
+            gainers_losers.append({'Symbol': symbol, 'Change (%)': percent_change})
 
-st.write(f"### Top Gainers (From {start_date} to {end_date}):")
-if top_gainers:
-    for symbol, price, change in top_gainers:
-        st.write(f"{symbol}: ₹{price:.2f} | Change: {change:.2f}%")
-else:
-    st.write("No top gainers today.")
+    # Create a DataFrame
+    df_gainers_losers = pd.DataFrame(gainers_losers)
 
-st.write(f"### Top Losers (From {start_date} to {end_date}):")
-if top_losers:
-    for symbol, price, change in top_losers:
-        st.write(f"{symbol}: ₹{price:.2f} | Change: {change:.2f}%")
-else:
-    st.write("No top losers today.")
+    # Sort the DataFrame by Change (%), descending for gainers and ascending for losers
+    df_gainers_losers = df_gainers_losers.sort_values(by='Change (%)', ascending=False)
 
-# --------- Date Setup ---------
-end_date = datetime.now().date()
-start_date = end_date - timedelta(days=1)
+    # Get top 5 gainers and losers
+    top_5_gainers = df_gainers_losers.head(5)
+    top_5_losers = df_gainers_losers.tail(5)
 
-# --------- Get Top Movers ---------
-st.subheader("📈 Top 5 Gainers and 📉 Top 5 Losers")
-top_gainers, top_losers = get_top_movers(symbols, start_date, end_date)
+    return top_5_gainers, top_5_losers
 
-col1, col2 = st.columns(2)
+# Streamlit UI setup
+def display_dashboard():
+    # Title and sidebar title
+    st.sidebar.title("Stock Market Dashboard")
+    st.title("Today's Top Gainers and Losers")
 
-with col1:
-    st.markdown("### 📈 Top 5 Gainers")
-    if top_gainers:
-        df_gainers = pd.DataFrame(top_gainers, columns=["Symbol", "% Change"])
-        st.table(df_gainers)
-    else:
-        st.write("No gainers today.")
+    # Fetch today's top gainers and losers
+    top_5_gainers, top_5_losers = get_top_gainers_losers()
 
-with col2:
-    st.markdown("### 📉 Top 5 Losers")
-    if top_losers:
-        df_losers = pd.DataFrame(top_losers, columns=["Symbol", "% Change"])
-        st.table(df_losers)
-    else:
-        st.write("No losers today.")
+    # Display Top 5 Gainers
+    st.write("### Top 5 Gainers Today")
+    st.write(top_5_gainers)
+
+    # Display Top 5 Losers
+    st.write("### Top 5 Losers Today")
+    st.write(top_5_losers)
+
+# Main app execution
+if __name__ == "__main__":
+    display_dashboard()
 
 # --------- Select Stock to View Chart ---------
 st.subheader("📊 Stock Price Chart")
