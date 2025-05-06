@@ -48,25 +48,43 @@ def fetch_stock_data(ticker, start_date, end_date):
 def get_top_movers(symbols, start_date, end_date):
     gainers = []
     losers = []
-
+    
     for symbol in symbols:
-        try:
-            data = fetch_stock_data(symbol, start_date, end_date)
-            if len(data) >= 2:
-                prev_close = data['Close'].iloc[0]
-                latest_close = data['Close'].iloc[-1]
-                percent_change = ((latest_close - prev_close) / prev_close) * 100
-                if percent_change >= 0:
-                    gainers.append((symbol, percent_change))
-                else:
-                    losers.append((symbol, percent_change))
-        except Exception as e:
-            st.warning(f"Failed to fetch {symbol}: {e}")
+        data = fetch_stock_data(symbol, start_date, end_date)
+        if len(data) > 0:  # Make sure we have data for the symbol
+            # Calculate percentage change between the first and last closing prices
+            change = (data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0] * 100
+            # Append to gainers or losers list
+            if change > 0:
+                gainers.append((symbol, data['Close'].iloc[-1], change))
+            else:
+                losers.append((symbol, data['Close'].iloc[-1], change))
+    
+    # Sort by percentage change
+    gainers.sort(key=lambda x: x[2], reverse=True)  # Sort by change percentage (descending)
+    losers.sort(key=lambda x: x[2])  # Sort by change percentage (ascending)
+    
+    return gainers[:5], losers[:5]  # Top 5 gainers and losers
 
-    top_gainers = sorted(gainers, key=lambda x: x[1], reverse=True)[:5]
-    top_losers = sorted(losers, key=lambda x: x[1])[:5]
+# Set dynamic date range (last 5 days, including today)
+end_date = datetime.today().strftime('%Y-%m-%d')
+start_date = (datetime.today() - timedelta(days=5)).strftime('%Y-%m-%d')
 
-    return top_gainers, top_losers
+top_gainers, top_losers = get_top_movers(symbols, start_date, end_date)
+
+st.write(f"### Top Gainers (From {start_date} to {end_date}):")
+if top_gainers:
+    for symbol, price, change in top_gainers:
+        st.write(f"{symbol}: ₹{price:.2f} | Change: {change:.2f}%")
+else:
+    st.write("No top gainers today.")
+
+st.write(f"### Top Losers (From {start_date} to {end_date}):")
+if top_losers:
+    for symbol, price, change in top_losers:
+        st.write(f"{symbol}: ₹{price:.2f} | Change: {change:.2f}%")
+else:
+    st.write("No top losers today.")
 
 # --------- Date Setup ---------
 end_date = datetime.now().date()
