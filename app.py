@@ -15,72 +15,103 @@ def fetch_stock_data(ticker, start_date, end_date):
     stock = yf.Ticker(ticker)
     return stock.history(start=start_date, end=end_date)
 def get_top_movers(symbols, start_date, end_date):
-    movers = []
+    gainers = []
+    losers = []
+
     for symbol in symbols:
         try:
             data = fetch_stock_data(symbol, start_date, end_date)
-            if len(data) < 2:
-                continue  # Skip if not enough data
-            price_now = data['Close'].iloc[-1]
-            price_prev = data['Close'].iloc[-2]
-            change = price_now - price_prev
-            pct_change = (change / price_prev) * 100
-            movers.append({
-                'Symbol': symbol,
-                'Price': price_now,
-                'Change': change,
-                'Change%': pct_change
-            })
+            if len(data) >= 2:
+                prev_close = data['Close'].iloc[0]
+                latest_close = data['Close'].iloc[-1]
+                percent_change = ((latest_close - prev_close) / prev_close) * 100
+                if percent_change >= 0:
+                    gainers.append((symbol, percent_change))
+                else:
+                    losers.append((symbol, percent_change))
         except Exception as e:
-            print(f"Error fetching data for {symbol}: {e}")
-    df = pd.DataFrame(movers)
-    df = df.sort_values(by='Change%', ascending=False)
-    top_gainers = df.head(5)
-    top_losers = df.tail(5)
+            st.warning(f"Failed to fetch {symbol}: {e}")
+
+    top_gainers = sorted(gainers, key=lambda x: x[1], reverse=True)[:5]
+    top_losers = sorted(losers, key=lambda x: x[1])[:5]
+
     return top_gainers, top_losers
 
-# Date range for last 3 trading days
+# --------- Date Setup ---------
 end_date = datetime.now().date()
-start_date = end_date - timedelta(days=5)
+start_date = end_date - timedelta(days=1)
 
-# App Title
-st.title("📊 Stock Market Dashboard")
+# --------- List of Symbols (Nifty 50 Sample) ---------
+symbols = [
+    'ADANIENSOL.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'ADANITRANS.NS', 'ALKEM.NS',
+    'AMBUJACEM.NS', 'APLLTD.NS', 'APOLLOHOSP.NS', 'AUROPHARMA.NS', 'AXISBANK.NS',
+    'BAJAJ-AUTO.NS', 'BAJAJFINSV.NS', 'BAJFINANCE.NS', 'BALKRISIND.NS', 'BANDHANBNK.NS',
+    'BANKBARODA.NS', 'BATAINDIA.NS', 'BEL.NS', 'BHARATFORG.NS', 'BHARTIARTL.NS',
+    'BIOCON.NS', 'BOSCHLTD.NS', 'BPCL.NS', 'BRITANNIA.NS', 'CANBK.NS',
+    'CHOLAFIN.NS', 'CIPLA.NS', 'COALINDIA.NS', 'COLPAL.NS', 'CONCOR.NS',
+    'CROMPTON.NS', 'DABUR.NS', 'DALBHARAT.NS', 'DIVISLAB.NS', 'DLF.NS',
+    'DMART.NS', 'DRREDDY.NS', 'EICHERMOT.NS', 'GAIL.NS', 'GLAND.NS',
+    'GODREJCP.NS', 'GODREJPROP.NS', 'GRASIM.NS', 'GUJGASLTD.NS', 'HAVELLS.NS',
+    'HCLTECH.NS', 'HDFCAMC.NS', 'HDFCBANK.NS', 'HDFCLIFE.NS', 'HEROMOTOCO.NS',
+    'HINDALCO.NS', 'HINDPETRO.NS', 'HINDUNILVR.NS', 'ICICIBANK.NS', 'ICICIGI.NS',
+    'ICICIPRULI.NS', 'IDBI.NS', 'IDFCFIRSTB.NS', 'IGL.NS', 'INDIGO.NS',
+    'INDUSINDBK.NS', 'INDUSTOWER.NS', 'INFY.NS', 'IOC.NS', 'IRCTC.NS', 'ITC.NS',
+    'JINDALSTEL.NS', 'JSWSTEEL.NS', 'JUBLFOOD.NS', 'KANSAINER.NS', 'KOTAKBANK.NS',
+    'L&TFH.NS', 'LALPATHLAB.NS', 'LICHSGFIN.NS', 'LT.NS', 'LTIM.NS', 'LUPIN.NS',
+    'M&M.NS', 'M&MFIN.NS', 'MANAPPURAM.NS', 'MARICO.NS', 'MARUTI.NS', 'MCDOWELL-N.NS',
+    'MCX.NS', 'METROBRAND.NS', 'MGL.NS', 'MINDTREE.NS', 'MPL.NS', 'MRF.NS',
+    'MUTHOOTFIN.NS', 'NAM-INDIA.NS', 'NATCOPHARM.NS', 'NAVINFLUOR.NS', 'NBCC.NS', 'NCC.NS',
+    'NESTLEIND.NS', 'NMDC.NS', 'NTPC.NS', 'OBEROIRLTY.NS', 'OFSS.NS', 'OIL.NS',
+    'ONGC.NS', 'PAGEIND.NS', 'PEL.NS', 'PETRONET.NS', 'PFC.NS', 'PIDILITIND.NS',
+    'PNB.NS', 'POLYCAB.NS', 'POWERGRID.NS', 'PRESTIGE.NS', 'PTC.NS', 'RAMCOCEM.NS',
+    'RBLBANK.NS', 'RECLTD.NS', 'RELIANCE.NS', 'SAIL.NS', 'SBICARD.NS', 'SBILIFE.NS',
+    'SBIN.NS', 'SHREECEM.NS', 'SIEMENS.NS', 'SRF.NS', 'SRTRANSFIN.NS', 'STARHEALTH.NS',
+    'SUNPHARMA.NS', 'SUNTV.NS', 'SUPREMEIND.NS', 'SYNGENE.NS', 'TATACHEM.NS', 'TATACONSUM.NS',
+    'TATAMOTORS.NS', 'TATAPOWER.NS', 'TATASTEEL.NS', 'TCS.NS', 'TECHM.NS', 'TITAN.NS',
+    'TORNTPHARM.NS', 'TORNTPOWER.NS', 'TRENT.NS', 'TVSMOTOR.NS', 'UBL.NS', 'ULTRACEMCO.NS',
+    'UPL.NS', 'VEDL.NS', 'VOLTAS.NS', 'WHIRLPOOL.NS', 'WIPRO.NS', 'YESBANK.NS',
+    'ZYDUSLIFE.NS'
+]
 
-# Fetch Top Movers
-with st.spinner("Fetching top gainers and losers..."):
-    top_gainers, top_losers = get_top_movers(symbols, start_date, end_date)
+# --------- Get Top Movers ---------
+st.subheader("📈 Top 5 Gainers and 📉 Top 5 Losers")
+top_gainers, top_losers = get_top_movers(symbols, start_date, end_date)
 
 col1, col2 = st.columns(2)
 
-# Show Top Gainers
 with col1:
-    st.markdown("### 🟢 Top Gainers")
-    if not top_gainers.empty:
-        for _, row in top_gainers.iterrows():
-            st.markdown(f"""
-            <div style="border:1px solid #4CAF50; border-radius:10px; padding:10px; margin-bottom:8px; background-color:#f0fff0;">
-                <strong>{row['Symbol']}</strong><br>
-                ₹{row['Price']:.2f}<br>
-                <span style='color:green;'>+{row['Change']:.2f} (+{row['Change%']:.2f}%)</span>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown("### 📈 Top 5 Gainers")
+    if top_gainers:
+        df_gainers = pd.DataFrame(top_gainers, columns=["Symbol", "% Change"])
+        st.table(df_gainers)
     else:
-        st.info("No data available to display gainers.")
+        st.write("No gainers today.")
 
-# Show Top Losers
 with col2:
-    st.markdown("### 🔴 Top Losers")
-    if not top_losers.empty:
-        for _, row in top_losers.iterrows():
-            st.markdown(f"""
-            <div style="border:1px solid #f44336; border-radius:10px; padding:10px; margin-bottom:8px; background-color:#fff0f0;">
-                <strong>{row['Symbol']}</strong><br>
-                ₹{row['Price']:.2f}<br>
-                <span style='color:red;'>{row['Change']:.2f} ({row['Change%']:.2f}%)</span>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown("### 📉 Top 5 Losers")
+    if top_losers:
+        df_losers = pd.DataFrame(top_losers, columns=["Symbol", "% Change"])
+        st.table(df_losers)
     else:
-        st.info("No data available to display losers.")
+        st.write("No losers today.")
+
+# --------- Select Stock to View Chart ---------
+st.subheader("📊 Stock Price Chart")
+selected_symbol = st.selectbox("Select a stock to visualize", symbols)
+data = fetch_stock_data(selected_symbol, datetime.now() - timedelta(days=30), datetime.now())
+
+if not data.empty:
+    fig = go.Figure(data=[go.Candlestick(
+        x=data.index,
+        open=data['Open'],
+        high=data['High'],
+        low=data['Low'],
+        close=data['Close']
+    )])
+    fig.update_layout(title=f"{selected_symbol} - Last 30 Days", xaxis_title="Date", yaxis_title="Price (INR)")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No data available for the selected stock.")
 
 def plot_candlestick(data):
     """Plot a candlestick chart."""
