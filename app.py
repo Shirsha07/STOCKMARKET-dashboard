@@ -45,9 +45,7 @@ def get_top_gainers_losers():
     'UPL.NS', 'VEDL.NS', 'VOLTAS.NS', 'WHIRLPOOL.NS', 'WIPRO.NS', 'YESBANK.NS',
     'ZYDUSLIFE.NS'
 ]
-
-    # Dictionary to store stock data
-      data = {}
+data = {}
 
     # Fetch data for today's date (1-minute intervals)
     for symbol in symbols:
@@ -74,6 +72,9 @@ def get_top_gainers_losers():
 
     # Drop any rows with NaN values in case there are any
     df_gainers_losers = df_gainers_losers.dropna(subset=['Change (%)'])
+
+    # Reset index to ensure alignment before sorting
+    df_gainers_losers = df_gainers_losers.reset_index(drop=True)
 
     # Sort the DataFrame by Change (%), descending for gainers and ascending for losers
     df_gainers_losers = df_gainers_losers.sort_values(by='Change (%)', ascending=False)
@@ -104,6 +105,7 @@ def display_dashboard():
 # Main app execution
 if __name__ == "__main__":
     display_dashboard()
+ 
 # --------- Select Stock to View Chart ---------
 st.subheader("📊 Stock Price Chart")
 selected_symbol = st.selectbox("Select a stock to visualize", symbols)
