@@ -14,6 +14,64 @@ def fetch_stock_data(ticker, start_date, end_date):
     """Fetch stock data using yfinance."""
     stock = yf.Ticker(ticker)
     return stock.history(start=start_date, end=end_date)
+def get_top_movers(symbols, start_date, end_date):
+    movers = []
+    for symbol in symbols:
+        try:
+            data = fetch_stock_data(symbol, start_date, end_date)
+            if len(data) >= 2:
+                price_now = data['Close'].iloc[-1]
+                price_prev = data['Close'].iloc[-2]
+                change = price_now - price_prev
+                pct_change = (change / price_prev) * 100
+                movers.append({
+                    'Symbol': symbol,
+                    'Price': price_now,
+                    'Change': change,
+                    'Change%': pct_change
+                })
+        except Exception as e:
+            print(f"Error processing {symbol}: {e}")
+            continue
+    df = pd.DataFrame(movers)
+    df_sorted = df.sort_values(by='Change%', ascending=False)
+    return df_sorted.head(5), df_sorted.tail(5)
+
+# Main App
+st.title("📊 Stock Market Dashboard")
+st.markdown("Real-time overview of selected stocks with top gainers and losers.")
+
+# Define date range
+end_date = datetime.now().date()
+start_date = end_date - timedelta(days=2)
+
+# Fetch and display top gainers and losers
+top_gainers, top_losers = get_top_movers(symbols, start_date, end_date)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("### 🟢 Top Gainers")
+    for _, row in top_gainers.iterrows():
+        st.markdown(f"""
+        <div style="border:1px solid #4CAF50; border-radius:10px; padding:10px; margin-bottom:8px; background-color:#f0fff0;">
+            <strong>{row['Symbol']}</strong><br>
+            ₹{row['Price']:.2f}<br>
+            <span style='color:green;'>+{row['Change']:.2f} (+{row['Change%']:.2f}%)</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("### 🔴 Top Losers")
+    for _, row in top_losers.iterrows():
+        st.markdown(f"""
+        <div style="border:1px solid #f44336; border-radius:10px; padding:10px; margin-bottom:8px; background-color:#fff0f0;">
+            <strong>{row['Symbol']}</strong><br>
+            ₹{row['Price']:.2f}<br>
+            <span style='color:red;'>{row['Change']:.2f} ({row['Change%']:.2f}%)</span>
+        </div>
+        """, unsafe_allow_html=True)
+
 
 def plot_candlestick(data):
     """Plot a candlestick chart."""
