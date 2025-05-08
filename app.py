@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import date
-import ta  # Technical analysis indicators
+import ta
 
 # App Title
 st.title("Stock Market Visualizer with Enhanced Analytics")
@@ -12,12 +12,10 @@ st.sidebar.title("Options")
 
 # Helper Functions
 def fetch_stock_data(ticker, start_date, end_date):
-    """Fetch stock data using yfinance."""
     stock = yf.Ticker(ticker)
     return stock.history(start=start_date, end=end_date)
 
 def plot_candlestick(data):
-    """Plot a candlestick chart."""
     fig = go.Figure()
     fig.add_trace(go.Candlestick(
         x=data.index,
@@ -31,24 +29,20 @@ def plot_candlestick(data):
     st.plotly_chart(fig)
 
 def plot_volume(data):
-    """Plot a volume chart."""
     fig = px.bar(data, x=data.index, y='Volume', title="Trading Volume", template="plotly_dark")
     st.plotly_chart(fig)
 
 def plot_daily_returns(data):
-    """Plot daily returns."""
     data['Daily Return'] = data['Close'].pct_change() * 100
     fig = px.line(data, x=data.index, y='Daily Return', title="Daily Returns (%)", template="plotly_dark")
     st.plotly_chart(fig)
 
 def plot_cumulative_returns(data):
-    """Plot cumulative returns."""
     data['Cumulative Return'] = (1 + data['Close'].pct_change()).cumprod() - 1
     fig = px.line(data, x=data.index, y='Cumulative Return', title="Cumulative Returns", template="plotly_dark")
     st.plotly_chart(fig)
 
 def plot_moving_averages(data, windows):
-    """Plot moving averages."""
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=data.index, y=data['Close'], mode='lines', name="Close Price"))
     for window in windows:
@@ -58,20 +52,24 @@ def plot_moving_averages(data, windows):
     st.plotly_chart(fig)
 
 def plot_correlation_matrix(data):
-    """Plot correlation matrix for stock portfolio."""
     corr = data.corr()
     fig = px.imshow(corr, title="Correlation Matrix", template="plotly_dark", text_auto=True, color_continuous_scale='RdBu_r')
     st.plotly_chart(fig)
 
-# Inputs
+# Fetch Nifty 200 list (hardcoded sample for demo – replace with full list or API if needed)
+nifty_200 = [
+    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS", "WIPRO.NS", "LT.NS", "HCLTECH.NS"
+]
+
+# Sidebar Inputs
 st.sidebar.header("Stock Selection")
-ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL)", value="AAPL")
+ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL)", value="RELIANCE.NS")
 start_date = st.sidebar.date_input("Start Date", value=date(2020, 1, 1))
 end_date = st.sidebar.date_input("End Date", value=date.today())
 
 data = fetch_stock_data(ticker, start_date, end_date)
 
-# Visualizations
+# Stock Visualizations
 if not data.empty:
     st.subheader(f"Stock Data for {ticker}")
     st.write(data.tail())
@@ -108,74 +106,57 @@ if portfolio_file:
     st.subheader("Correlation Matrix")
     plot_correlation_matrix(portfolio_df)
 
-# ====================================
-# 🔻 NIFTY 200 Gainers / Losers / Trend
-# ====================================
-
-st.markdown("---")
-st.header("📊 NIFTY 200: Top Gainers, Losers & Upward Trend")
-
-# Sample list of NIFTY 200 tickers (extend as needed)
-nifty200_tickers = [
-    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
-    "ITC.NS", "LT.NS", "KOTAKBANK.NS", "SBIN.NS", "AXISBANK.NS",
-    "HINDUNILVR.NS", "BHARTIARTL.NS", "BAJFINANCE.NS", "ASIANPAINT.NS",
-    "MARUTI.NS", "SUNPHARMA.NS", "ULTRACEMCO.NS", "TITAN.NS", "NESTLEIND.NS",
-    "WIPRO.NS", "TECHM.NS", "ADANIENT.NS", "HCLTECH.NS", "NTPC.NS", "POWERGRID.NS"
-]
-
-price_changes = {}
-upward_trending_stocks = []
-
-for symbol in nifty200_tickers:
+# Top Gainers & Losers in Nifty 200
+st.subheader("📈 Top Gainers & 📉 Losers (Nifty 200)")
+gain_data = []
+for t in nifty_200:
     try:
-        df = fetch_stock_data(symbol, start_date, end_date)
-        if len(df) < 50:
+        df = fetch_stock_data(t, date.today().replace(year=date.today().year - 1), date.today())
+        if len(df) >= 2:
+            change = ((df['Close'][-1] - df['Close'][-2]) / df['Close'][-2]) * 100
+            gain_data.append((t, change))
+    except:
+        pass
+
+sorted_gainers = sorted(gain_data, key=lambda x: x[1], reverse=True)
+st.write("### 🔼 Top 5 Gainers")
+st.table(sorted_gainers[:5])
+
+st.write("### 🔽 Top 5 Losers")
+st.table(sorted_gainers[-5:])
+
+# Upward Trend Stocks based on TA
+st.subheader("📊 Upward Trend Stocks in Nifty 200")
+upward_trend_stocks = []
+
+for t in nifty_200:
+    try:
+        df = fetch_stock_data(t, start_date, end_date)
+        if df.empty or len(df) < 50:
             continue
 
-        df.dropna(inplace=True)
+        # TA indicators
+        df['EMA'] = ta.trend.ema_indicator(df['Close'], window=20).fillna(0)
+        macd = ta.trend.macd(df['Close']).fillna(0)
+        rsi = ta.momentum.RSIIndicator(df['Close']).rsi().fillna(0)
+        boll = ta.volatility.BollingerBands(df['Close'])
 
-        # Calculate Price Change
-        if len(df) >= 2:
-            change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100
-            price_changes[symbol] = round(change, 2)
+        macd_val = macd.iloc[-1]
+        rsi_val = rsi.iloc[-1]
+        close = df['Close'].iloc[-1]
+        upper_band = boll.bollinger_hband().iloc[-1]
+        ema = df['EMA'].iloc[-1]
 
-        # Technical Indicators for upward trend
-        df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi()
-        df['MACD'] = ta.trend.MACD(df['Close']).macd_diff()
-        df['EMA20'] = ta.trend.EMAIndicator(df['Close'], window=20).ema_indicator()
-        bb = ta.volatility.BollingerBands(close=df['Close'], window=20)
-        df['BB_upper'] = bb.bollinger_hband()
-
-        latest = df.iloc[-1]
-        if (
-            latest['MACD'] > 0 and
-            latest['RSI'] > 50 and
-            latest['Close'] >= latest['BB_upper'] and
-            latest['Close'] > latest['EMA20']
-        ):
-            upward_trending_stocks.append(symbol)
-
-    except Exception as e:
+        if macd_val > 0 and rsi_val > 50 and close >= upper_band and close > ema:
+            upward_trend_stocks.append(t)
+    except:
         continue
 
-# Gainers and Losers
-sorted_changes = dict(sorted(price_changes.items(), key=lambda item: item[1], reverse=True))
-gainers = dict(list(sorted_changes.items())[:5])
-losers = dict(list(sorted_changes.items())[-5:])
+selected_upward = st.selectbox("Select upward trending stock", options=upward_trend_stocks if upward_trend_stocks else ["None"])
 
-# Display Gainers and Losers
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("🚀 Top Gainers (NIFTY 200)")
-    st.write(pd.DataFrame(gainers.items(), columns=["Ticker", "Change (%)"]))
-with col2:
-    st.subheader("📉 Top Losers (NIFTY 200)")
-    st.write(pd.DataFrame(losers.items(), columns=["Ticker", "Change (%)"]))
-
-# Upward Trend Dropdown
-if upward_trending_stocks:
-    selected_stock = st.selectbox("📈 Select an Upward Trending Stock", upward_trending_stocks)
-    st.success(f"You selected: {selected_stock}")
-else:
-    st.info("No stocks currently meet the upward trend conditions.")
+# 📩 Contact Me
+st.sidebar.markdown("---")
+st.sidebar.markdown("📬 **Contact Me**")
+if st.sidebar.button("Get in Touch"):
+    st.sidebar.markdown("📧 Email: yourname@example.com")
+    st.sidebar.markdown("🔗 [LinkedIn](https://www.linkedin.com/in/yourprofile)")
