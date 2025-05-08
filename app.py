@@ -107,23 +107,36 @@ if portfolio_file:
     plot_correlation_matrix(portfolio_df)
 
 # Top Gainers & Losers in Nifty 200
+# Top Gainers & Losers in Nifty 200
 st.subheader("📈 Top Gainers & 📉 Losers (Nifty 200)")
+
 gain_data = []
 for t in nifty_200:
     try:
         df = fetch_stock_data(t, date.today().replace(year=date.today().year - 1), date.today())
         if len(df) >= 2:
             change = ((df['Close'][-1] - df['Close'][-2]) / df['Close'][-2]) * 100
-            gain_data.append((t, change))
+            gain_data.append((t, round(change, 2)))
     except:
         pass
 
 sorted_gainers = sorted(gain_data, key=lambda x: x[1], reverse=True)
-st.write("### 🔼 Top 5 Gainers")
-st.table(sorted_gainers[:5])
 
-st.write("### 🔽 Top 5 Losers")
-st.table(sorted_gainers[-5:])
+# Styled display using markdown
+def format_stock_list(stocks, is_gainer=True):
+    formatted = ""
+    for symbol, change in stocks:
+        color = "green" if is_gainer else "red"
+        emoji = "📈" if is_gainer else "📉"
+        formatted += f"{emoji} **{symbol}** — <span style='color:{color}; font-weight:bold'>{change:.2f}%</span><br>"
+    return formatted
+
+st.markdown("### 🔼 Top 5 Gainers")
+st.markdown(format_stock_list(sorted_gainers[:5], is_gainer=True), unsafe_allow_html=True)
+
+st.markdown("### 🔽 Top 5 Losers")
+st.markdown(format_stock_list(sorted_gainers[-5:], is_gainer=False), unsafe_allow_html=True)
+
 
 # Upward Trend Stocks based on TA
 st.subheader("📊 Upward Trend Stocks in Nifty 200")
