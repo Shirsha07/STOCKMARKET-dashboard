@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import date
+import ta  # Technical analysis indicators
 
 # App Title
 st.title("Stock Market Visualizer with Enhanced Analytics")
@@ -75,23 +76,18 @@ if not data.empty:
     st.subheader(f"Stock Data for {ticker}")
     st.write(data.tail())
 
-    # Candlestick Chart
     st.subheader("Candlestick Chart")
     plot_candlestick(data)
 
-    # Volume Chart
     st.subheader("Volume Chart")
     plot_volume(data)
 
-    # Daily Returns
     st.subheader("Daily Returns")
     plot_daily_returns(data)
 
-    # Cumulative Returns
     st.subheader("Cumulative Returns")
     plot_cumulative_returns(data)
 
-    # Moving Averages
     st.sidebar.header("Moving Averages")
     moving_averages = st.sidebar.multiselect("Select Moving Averages (days)", options=[10, 20, 50, 100, 200], default=[20, 50])
     if moving_averages:
@@ -112,53 +108,74 @@ if portfolio_file:
     st.subheader("Correlation Matrix")
     plot_correlation_matrix(portfolio_df)
 
-# ==========================
-# 🔻 MARKET SUMMARY SECTION
-# ==========================
+# ====================================
+# 🔻 NIFTY 200 Gainers / Losers / Trend
+# ====================================
 
 st.markdown("---")
-st.header("📊 Market Summary: Gainers, Losers & Trend")
+st.header("📊 NIFTY 200: Top Gainers, Losers & Upward Trend")
 
-# Define a list of sample tickers (replace with actual index tickers if desired)
-market_tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'INTC', 'CSCO']
+# Sample list of NIFTY 200 tickers (extend as needed)
+nifty200_tickers = [
+    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
+    "ITC.NS", "LT.NS", "KOTAKBANK.NS", "SBIN.NS", "AXISBANK.NS",
+    "HINDUNILVR.NS", "BHARTIARTL.NS", "BAJFINANCE.NS", "ASIANPAINT.NS",
+    "MARUTI.NS", "SUNPHARMA.NS", "ULTRACEMCO.NS", "TITAN.NS", "NESTLEIND.NS",
+    "WIPRO.NS", "TECHM.NS", "ADANIENT.NS", "HCLTECH.NS", "NTPC.NS", "POWERGRID.NS"
+]
+
 price_changes = {}
+upward_trending_stocks = []
 
-for symbol in market_tickers:
+for symbol in nifty200_tickers:
     try:
         df = fetch_stock_data(symbol, start_date, end_date)
+        if len(df) < 50:
+            continue
+
+        df.dropna(inplace=True)
+
+        # Calculate Price Change
         if len(df) >= 2:
             change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100
             price_changes[symbol] = round(change, 2)
-    except:
+
+        # Technical Indicators for upward trend
+        df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi()
+        df['MACD'] = ta.trend.MACD(df['Close']).macd_diff()
+        df['EMA20'] = ta.trend.EMAIndicator(df['Close'], window=20).ema_indicator()
+        bb = ta.volatility.BollingerBands(close=df['Close'], window=20)
+        df['BB_upper'] = bb.bollinger_hband()
+
+        latest = df.iloc[-1]
+        if (
+            latest['MACD'] > 0 and
+            latest['RSI'] > 50 and
+            latest['Close'] >= latest['BB_upper'] and
+            latest['Close'] > latest['EMA20']
+        ):
+            upward_trending_stocks.append(symbol)
+
+    except Exception as e:
         continue
 
-# Sort to get top gainers and losers
+# Gainers and Losers
 sorted_changes = dict(sorted(price_changes.items(), key=lambda item: item[1], reverse=True))
 gainers = dict(list(sorted_changes.items())[:5])
 losers = dict(list(sorted_changes.items())[-5:])
 
+# Display Gainers and Losers
 col1, col2 = st.columns(2)
 with col1:
-    st.subheader("🚀 Top Gainers")
+    st.subheader("🚀 Top Gainers (NIFTY 200)")
     st.write(pd.DataFrame(gainers.items(), columns=["Ticker", "Change (%)"]))
-
 with col2:
-    st.subheader("📉 Top Losers")
+    st.subheader("📉 Top Losers (NIFTY 200)")
     st.write(pd.DataFrame(losers.items(), columns=["Ticker", "Change (%)"]))
 
-# ==========================
-# 📈 TREND DETECTION SECTION
-# ==========================
-st.markdown("## 📈 Trend Detection for Selected Stock")
-
-if not data.empty:
-    data['MA50'] = data['Close'].rolling(window=50).mean()
-    data['MA200'] = data['Close'].rolling(window=200).mean()
-
-    try:
-        if data['Close'].iloc[-1] > data['MA50'].iloc[-1] > data['MA200'].iloc[-1]:
-            st.success(f"✅ Upward Trend Detected for **{ticker}**!")
-        else:
-            st.info(f"ℹ️ No clear upward trend detected for **{ticker}**.")
-    except:
-        st.warning("⚠️ Not enough data for trend detection.")
+# Upward Trend Dropdown
+if upward_trending_stocks:
+    selected_stock = st.selectbox("📈 Select an Upward Trending Stock", upward_trending_stocks)
+    st.success(f"You selected: {selected_stock}")
+else:
+    st.info("No stocks currently meet the upward trend conditions.")
