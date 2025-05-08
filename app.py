@@ -111,3 +111,54 @@ if portfolio_file:
     portfolio_df = pd.DataFrame(portfolio_data)
     st.subheader("Correlation Matrix")
     plot_correlation_matrix(portfolio_df)
+
+# ==========================
+# 🔻 MARKET SUMMARY SECTION
+# ==========================
+
+st.markdown("---")
+st.header("📊 Market Summary: Gainers, Losers & Trend")
+
+# Define a list of sample tickers (replace with actual index tickers if desired)
+market_tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'INTC', 'CSCO']
+price_changes = {}
+
+for symbol in market_tickers:
+    try:
+        df = fetch_stock_data(symbol, start_date, end_date)
+        if len(df) >= 2:
+            change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100
+            price_changes[symbol] = round(change, 2)
+    except:
+        continue
+
+# Sort to get top gainers and losers
+sorted_changes = dict(sorted(price_changes.items(), key=lambda item: item[1], reverse=True))
+gainers = dict(list(sorted_changes.items())[:5])
+losers = dict(list(sorted_changes.items())[-5:])
+
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("🚀 Top Gainers")
+    st.write(pd.DataFrame(gainers.items(), columns=["Ticker", "Change (%)"]))
+
+with col2:
+    st.subheader("📉 Top Losers")
+    st.write(pd.DataFrame(losers.items(), columns=["Ticker", "Change (%)"]))
+
+# ==========================
+# 📈 TREND DETECTION SECTION
+# ==========================
+st.markdown("## 📈 Trend Detection for Selected Stock")
+
+if not data.empty:
+    data['MA50'] = data['Close'].rolling(window=50).mean()
+    data['MA200'] = data['Close'].rolling(window=200).mean()
+
+    try:
+        if data['Close'].iloc[-1] > data['MA50'].iloc[-1] > data['MA200'].iloc[-1]:
+            st.success(f"✅ Upward Trend Detected for **{ticker}**!")
+        else:
+            st.info(f"ℹ️ No clear upward trend detected for **{ticker}**.")
+    except:
+        st.warning("⚠️ Not enough data for trend detection.")
