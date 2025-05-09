@@ -200,35 +200,35 @@ if portfolio_file:
     plot_correlation_matrix(portfolio_df)
 
 # Top Gainers & Losers in Nifty 200
-st.subheader("📈 Top Gainers & 📉 Losers (Nifty 200)")
+st.markdown("---")
+st.header("📊 Market Summary: Gainers, Losers & Trend")
 
-gain_data = []
-for t in nifty_200:
+# Define a list of sample tickers (replace with actual index tickers if desired)
+market_tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'INTC', 'CSCO']
+price_changes = {}
+
+for symbol in market_tickers:
     try:
-        df = fetch_stock_data(t, date.today().replace(year=date.today().year - 1), date.today())
+        df = fetch_stock_data(symbol, start_date, end_date)
         if len(df) >= 2:
-            change = ((df['Close'][-1] - df['Close'][-2]) / df['Close'][-2]) * 100
-            gain_data.append((t, round(change, 2)))
+            change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100
+            price_changes[symbol] = round(change, 2)
     except:
-        pass
+        continue
 
-sorted_gainers = sorted(gain_data, key=lambda x: x[1], reverse=True)
+# Sort to get top gainers and losers
+sorted_changes = dict(sorted(price_changes.items(), key=lambda item: item[1], reverse=True))
+gainers = dict(list(sorted_changes.items())[:5])
+losers = dict(list(sorted_changes.items())[-5:])
 
-# Styled display using markdown
-def format_stock_list(stocks, is_gainer=True):
-    formatted = ""
-    for symbol, change in stocks:
-        color = "green" if is_gainer else "red"
-        emoji = "📈" if is_gainer else "📉"
-        formatted += f"{emoji} **{symbol}** — <span style='color:{color}; font-weight:bold'>{change:.2f}%</span><br>"
-    return formatted
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("🚀 Top Gainers")
+    st.write(pd.DataFrame(gainers.items(), columns=["Ticker", "Change (%)"]))
 
-st.markdown("### 🔼 Top 5 Gainers")
-st.markdown(format_stock_list(sorted_gainers[:5], is_gainer=True), unsafe_allow_html=True)
-
-st.markdown("### 🔽 Top 5 Losers")
-st.markdown(format_stock_list(sorted_gainers[-5:], is_gainer=False), unsafe_allow_html=True)
-
+with col2:
+    st.subheader("📉 Top Losers")
+    st.write(pd.DataFrame(losers.items(), columns=["Ticker", "Change (%)"]))
 # Upward Trend Stocks based on TA
 st.subheader("📊 Scan for Bullish Breakout Stocks")
 
