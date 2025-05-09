@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots 
+from plotly.subplots import make_subplots
 from datetime import date
 import ta
 
@@ -16,8 +16,8 @@ def fetch_stock_data(ticker, start_date, end_date):
     stock = yf.Ticker(ticker)
     return stock.history(start=start_date, end=end_date)
 
-def plot_candles_stick_bar(df, title="", currency=""):
-    import ta  # in case it's not already imported
+def plot_candles_stick_bar(df, title="", currency="", show_ema=True, show_rsi=True, show_macd=True, show_atr=True):
+    # Compute technical indicators
     df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20)
     df['RSI'] = ta.momentum.RSIIndicator(df['Close']).rsi()
     df['MACD'] = ta.trend.macd_diff(df['Close'])
@@ -28,40 +28,53 @@ def plot_candles_stick_bar(df, title="", currency=""):
         shared_xaxes=True,
         vertical_spacing=0.02,
         row_heights=[0.4, 0.15, 0.15, 0.15, 0.15],
-        subplot_titles=("Candlestick + EMA20", "Volume", "RSI", "MACD", "ATR")
+        subplot_titles=("Candlestick + EMA20" if show_ema else "Candlestick", 
+                        "Volume", 
+                        "RSI" if show_rsi else "",
+                        "MACD" if show_macd else "",
+                        "ATR" if show_atr else "")
     )
 
+    # Candlestick chart
     fig.add_trace(go.Candlestick(
-    x=df.index,
-    open=df['Open'],
-    high=df['High'],
-    low=df['Low'],
-    close=df['Close'],
-    increasing_line_color='green',
-    decreasing_line_color='red',
-    name="Candlestick"
-)
-, row=1, col=1)
-
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df['EMA20'], mode="lines", name="EMA 20", line=dict(color='orange')
+        x=df.index,
+        open=df['Open'],
+        high=df['High'],
+        low=df['Low'],
+        close=df['Close'],
+        increasing_line_color='green',
+        decreasing_line_color='red',
+        name="Candlestick"
     ), row=1, col=1)
 
+    # Add EMA20 if selected
+    if show_ema:
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df['EMA20'], mode="lines", name="EMA 20", line=dict(color='orange')
+        ), row=1, col=1)
+
+    # Volume chart
     fig.add_trace(go.Bar(
         x=df.index, y=df['Volume'], name="Volume"
     ), row=2, col=1)
 
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df['RSI'], mode="lines", name="RSI", line=dict(color='purple')
-    ), row=3, col=1)
+    # Add RSI if selected
+    if show_rsi:
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df['RSI'], mode="lines", name="RSI", line=dict(color='purple')
+        ), row=3, col=1)
 
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df['MACD'], mode="lines", name="MACD", line=dict(color='green')
-    ), row=4, col=1)
+    # Add MACD if selected
+    if show_macd:
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df['MACD'], mode="lines", name="MACD", line=dict(color='green')
+        ), row=4, col=1)
 
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df['ATR'], mode="lines", name="ATR", line=dict(color='blue')
-    ), row=5, col=1)
+    # Add ATR if selected
+    if show_atr:
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df['ATR'], mode="lines", name="ATR", line=dict(color='blue')
+        ), row=5, col=1)
 
     fig.update_layout(
         title=f"{title} {currency}",
@@ -114,13 +127,19 @@ end_date = st.sidebar.date_input("End Date", value=date.today())
 
 data = fetch_stock_data(ticker, start_date, end_date)
 
+# Sidebar Checkboxes for Indicators
+show_ema = st.sidebar.checkbox("EMA (20)", value=True)
+show_rsi = st.sidebar.checkbox("RSI")
+show_macd = st.sidebar.checkbox("MACD")
+show_atr = st.sidebar.checkbox("ATR")
+
 # Stock Visualizations
 if not data.empty:
     st.subheader(f"Stock Data for {ticker}")
     st.write(data.tail())
 
     st.subheader("Candlestick + Indicators")
-    plot_candles_stick_bar(data, title=ticker)
+    plot_candles_stick_bar(data, title=ticker, show_ema=show_ema, show_rsi=show_rsi, show_macd=show_macd, show_atr=show_atr)
 
     st.subheader("Volume Chart")
     plot_volume(data)
@@ -151,7 +170,6 @@ if portfolio_file:
     st.subheader("Correlation Matrix")
     plot_correlation_matrix(portfolio_df)
 
-# Top Gainers & Losers in Nifty 200
 # Top Gainers & Losers in Nifty 200
 st.subheader("📈 Top Gainers & 📉 Losers (Nifty 200)")
 
@@ -218,10 +236,3 @@ st.sidebar.markdown("📬 **Contact Me**")
 if st.sidebar.button("Get in Touch"):
     st.sidebar.markdown("📧 Email: yourname@example.com")
     st.sidebar.markdown("🔗 [LinkedIn](https://www.linkedin.com/in/yourprofile)")
-st.sidebar.subheader("Select Technical Indicators")
-
-show_ema = st.sidebar.checkbox("EMA (20)", value=True)
-show_rsi = st.sidebar.checkbox("RSI")
-show_macd = st.sidebar.checkbox("MACD")
-show_atr = st.sidebar.checkbox("ATR")
-
