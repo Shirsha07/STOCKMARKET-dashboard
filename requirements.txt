@@ -4,3 +4,4 @@ plotly
 yfinance
 openpyxl
 ta
+mysql-connector-python
