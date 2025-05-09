@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots 
 from datetime import date
 import ta
 
@@ -15,16 +16,62 @@ def fetch_stock_data(ticker, start_date, end_date):
     stock = yf.Ticker(ticker)
     return stock.history(start=start_date, end=end_date)
 
-def plot_candlestick(data):
-    fig = go.Figure()
+from plotly.subplots import make_subplots  # Make sure this import is at the top of your file
+
+def plot_candles_stick_bar(df, title="", currency=""):
+    import ta  # in case it's not already imported
+    df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20)
+    df['RSI'] = ta.momentum.RSIIndicator(df['Close']).rsi()
+    df['MACD'] = ta.trend.macd_diff(df['Close'])
+    df['ATR'] = ta.volatility.average_true_range(df['High'], df['Low'], df['Close'])
+
+    fig = make_subplots(
+        rows=5, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.02,
+        row_heights=[0.4, 0.15, 0.15, 0.15, 0.15],
+        subplot_titles=("Candlestick + EMA20", "Volume", "RSI", "MACD", "ATR")
+    )
+
     fig.add_trace(go.Candlestick(
-        x=data.index,
-        open=data['Open'],
-        high=data['High'],
-        low=data['Low'],
-        close=data['Close'],
+        x=df.index,
+        open=df['Open'],
+        high=df['High'],
+        low=df['Low'],
+        close=df['Close'],
         name="Candlestick"
-    ))
+    ), row=1, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df['EMA20'], mode="lines", name="EMA 20", line=dict(color='orange')
+    ), row=1, col=1)
+
+    fig.add_trace(go.Bar(
+        x=df.index, y=df['Volume'], name="Volume"
+    ), row=2, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df['RSI'], mode="lines", name="RSI", line=dict(color='purple')
+    ), row=3, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df['MACD'], mode="lines", name="MACD", line=dict(color='green')
+    ), row=4, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df['ATR'], mode="lines", name="ATR", line=dict(color='blue')
+    ), row=5, col=1)
+
+    fig.update_layout(
+        title=f"{title} {currency}",
+        template="plotly_dark",
+        height=1000,
+        showlegend=False,
+        xaxis_rangeslider_visible=False
+    )
+
+    st.plotly_chart(fig)
+
     fig.update_layout(title="Candlestick Chart", xaxis_title="Date", yaxis_title="Price", template="plotly_dark")
     st.plotly_chart(fig)
 
