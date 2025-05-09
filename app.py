@@ -232,29 +232,34 @@ st.markdown(format_stock_list(sorted_gainers[-5:], is_gainer=False), unsafe_allo
 # Upward Trend Stocks based on TA
 st.subheader("📊 Scan for Bullish Breakout Stocks")
 
-if st.button("🚀 Bullish Breakout Stocks"):
+start_date = date(2024, 1, 1)
+end_date = date.today()
+
+def fetch_stock_data(ticker):
+    stock = yf.Ticker(ticker)
+    return stock.history(start=start_date, end=end_date)
+
+if st.button("📊 Bullish Breakout Stocks"):
     bullish_stocks = []
 
-    for t in nifty_200:
+    progress = st.progress(0)
+    for i, t in enumerate(nifty_200):
         try:
-            df = fetch_stock_data(t, start_date, end_date)
+            df = fetch_stock_data(t)
             if df.empty or len(df) < 50:
                 continue
 
-            # TA indicators
             df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20).fillna(0)
             macd = ta.trend.macd(df['Close']).fillna(0)
             rsi = ta.momentum.RSIIndicator(df['Close']).rsi().fillna(0)
-            boll = ta.volatility.BollingerBands(df['Close'])
+            boll = ta.volatility.BollingerBands(df['Close'], window=20)
 
-            # Latest values
             macd_val = macd.iloc[-1]
             rsi_val = rsi.iloc[-1]
             close = df['Close'].iloc[-1]
             upper_band = boll.bollinger_hband().iloc[-1]
             ema20 = df['EMA20'].iloc[-1]
 
-            # All 4 conditions
             if macd_val > 0 and rsi_val > 50 and close >= upper_band and close > ema20:
                 bullish_stocks.append({
                     "Ticker": t,
@@ -265,13 +270,15 @@ if st.button("🚀 Bullish Breakout Stocks"):
                     "EMA20": round(ema20, 2)
                 })
         except Exception as e:
-            continue
+            st.error(f"Error processing {t}: {e}")
+        progress.progress((i + 1) / len(nifty_200))
 
     if bullish_stocks:
-        st.success(f"📈 Found {len(bullish_stocks)} bullish breakout stock(s):")
-        st.dataframe(pd.DataFrame(bullish_stocks))
+        df_result = pd.DataFrame(bullish_stocks)
+        st.success("📋 Found the following bullish breakout stocks:")
+        st.dataframe(df_result)
     else:
-        st.warning("No stocks met **all 4 bullish breakout criteria** at this time.")
+        st.warning("❌ No bullish breakout stocks found.")
 
 # 📩 Contact Me
 st.sidebar.markdown("---")
