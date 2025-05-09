@@ -240,24 +240,36 @@ for t in nifty_200:
         if df.empty or len(df) < 50:
             continue
 
-        # TA indicators
-        df['EMA'] = ta.trend.ema_indicator(df['Close'], window=20).fillna(0)
-        macd = ta.trend.macd(df['Close']).fillna(0)
-        rsi = ta.momentum.RSIIndicator(df['Close']).rsi().fillna(0)
+        # EMA
+        df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20).fillna(method='bfill')
+
+        # MACD
+        macd = ta.trend.MACD(df['Close'])
+        macd_val = macd.macd().iloc[-1]
+
+        # RSI
+        rsi = ta.momentum.RSIIndicator(df['Close'], window=14)
+        rsi_val = rsi.rsi().iloc[-1]
+
+        # Bollinger Bands
         boll = ta.volatility.BollingerBands(df['Close'])
-
-        macd_val = macd.iloc[-1]
-        rsi_val = rsi.iloc[-1]
-        close = df['Close'].iloc[-1]
         upper_band = boll.bollinger_hband().iloc[-1]
-        ema = df['EMA'].iloc[-1]
 
-        if macd_val > 0 and rsi_val > 50 and close >= upper_band and close > ema:
+        close = df['Close'].iloc[-1]
+        ema_val = df['EMA20'].iloc[-1]
+
+        if macd_val > 0 and rsi_val > 50 and close >= upper_band and close > ema_val:
             upward_trend_stocks.append(t)
-    except:
+    except Exception as e:
+        st.warning(f"Failed for {t}: {e}")
         continue
 
-selected_upward = st.selectbox("Select upward trending stock", options=upward_trend_stocks if upward_trend_stocks else ["None"])
+# Display result
+if upward_trend_stocks:
+    selected_upward = st.selectbox("Upward trend stock", options=upward_trend_stocks)
+else:
+    st.info("⚠️ No stocks currently meet the uptrend criteria.")
+
 
 # 📩 Contact Me
 st.sidebar.markdown("---")
