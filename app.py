@@ -229,47 +229,49 @@ st.markdown(format_stock_list(sorted_gainers[:5], is_gainer=True), unsafe_allow_
 st.markdown("### 🔽 Top 5 Losers")
 st.markdown(format_stock_list(sorted_gainers[-5:], is_gainer=False), unsafe_allow_html=True)
 
-
 # Upward Trend Stocks based on TA
-st.subheader("📊 Upward Trend Stocks in Nifty 200")
-upward_trend_stocks = []
+st.subheader("📊 Scan for Bullish Breakout Stocks")
 
-for t in nifty_200:
-    try:
-        df = fetch_stock_data(t, start_date, end_date)
-        if df.empty or len(df) < 50:
+if st.button("🚀 Bullish Breakout Stocks"):
+    bullish_stocks = []
+
+    for t in nifty_200:
+        try:
+            df = fetch_stock_data(t, start_date, end_date)
+            if df.empty or len(df) < 50:
+                continue
+
+            # TA indicators
+            df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20).fillna(0)
+            macd = ta.trend.macd(df['Close']).fillna(0)
+            rsi = ta.momentum.RSIIndicator(df['Close']).rsi().fillna(0)
+            boll = ta.volatility.BollingerBands(df['Close'])
+
+            # Latest values
+            macd_val = macd.iloc[-1]
+            rsi_val = rsi.iloc[-1]
+            close = df['Close'].iloc[-1]
+            upper_band = boll.bollinger_hband().iloc[-1]
+            ema20 = df['EMA20'].iloc[-1]
+
+            # All 4 conditions
+            if macd_val > 0 and rsi_val > 50 and close >= upper_band and close > ema20:
+                bullish_stocks.append({
+                    "Ticker": t,
+                    "MACD": round(macd_val, 2),
+                    "RSI": round(rsi_val, 2),
+                    "Close": round(close, 2),
+                    "Upper Band": round(upper_band, 2),
+                    "EMA20": round(ema20, 2)
+                })
+        except Exception as e:
             continue
 
-        # EMA
-        df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20).fillna(method='bfill')
-
-        # MACD
-        macd = ta.trend.MACD(df['Close'])
-        macd_val = macd.macd().iloc[-1]
-
-        # RSI
-        rsi = ta.momentum.RSIIndicator(df['Close'], window=14)
-        rsi_val = rsi.rsi().iloc[-1]
-
-        # Bollinger Bands
-        boll = ta.volatility.BollingerBands(df['Close'])
-        upper_band = boll.bollinger_hband().iloc[-1]
-
-        close = df['Close'].iloc[-1]
-        ema_val = df['EMA20'].iloc[-1]
-
-        if macd_val > 0 and rsi_val > 50 and close >= upper_band and close > ema_val:
-            upward_trend_stocks.append(t)
-    except Exception as e:
-        st.warning(f"Failed for {t}: {e}")
-        continue
-
-# Display result
-if upward_trend_stocks:
-    selected_upward = st.selectbox("Upward trend stock", options=upward_trend_stocks)
-else:
-    st.info("⚠️ No stocks currently meet the uptrend criteria.")
-
+    if bullish_stocks:
+        st.success(f"📈 Found {len(bullish_stocks)} bullish breakout stock(s):")
+        st.dataframe(pd.DataFrame(bullish_stocks))
+    else:
+        st.warning("No stocks met **all 4 bullish breakout criteria** at this time.")
 
 # 📩 Contact Me
 st.sidebar.markdown("---")
