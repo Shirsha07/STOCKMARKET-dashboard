@@ -32,13 +32,16 @@ def plot_candles_stick_bar(df, title="", currency=""):
     )
 
     fig.add_trace(go.Candlestick(
-        x=df.index,
-        open=df['Open'],
-        high=df['High'],
-        low=df['Low'],
-        close=df['Close'],
-        name="Candlestick"
-    ), row=1, col=1)
+    x=df.index,
+    open=df['Open'],
+    high=df['High'],
+    low=df['Low'],
+    close=df['Close'],
+    increasing_line_color='green',
+    decreasing_line_color='red',
+    name="Candlestick"
+)
+, row=1, col=1)
 
     fig.add_trace(go.Scatter(
         x=df.index, y=df['EMA20'], mode="lines", name="EMA 20", line=dict(color='orange')
@@ -215,3 +218,10 @@ st.sidebar.markdown("📬 **Contact Me**")
 if st.sidebar.button("Get in Touch"):
     st.sidebar.markdown("📧 Email: yourname@example.com")
     st.sidebar.markdown("🔗 [LinkedIn](https://www.linkedin.com/in/yourprofile)")
+st.sidebar.subheader("Select Technical Indicators")
+
+show_ema = st.sidebar.checkbox("EMA (20)", value=True)
+show_rsi = st.sidebar.checkbox("RSI")
+show_macd = st.sidebar.checkbox("MACD")
+show_atr = st.sidebar.checkbox("ATR")
+
