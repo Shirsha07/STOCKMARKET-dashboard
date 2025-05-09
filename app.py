@@ -16,8 +16,6 @@ def fetch_stock_data(ticker, start_date, end_date):
     stock = yf.Ticker(ticker)
     return stock.history(start=start_date, end=end_date)
 
-from plotly.subplots import make_subplots  # Make sure this import is at the top of your file
-
 def plot_candles_stick_bar(df, title="", currency=""):
     import ta  # in case it's not already imported
     df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20)
@@ -72,9 +70,6 @@ def plot_candles_stick_bar(df, title="", currency=""):
 
     st.plotly_chart(fig)
 
-    fig.update_layout(title="Candlestick Chart", xaxis_title="Date", yaxis_title="Price", template="plotly_dark")
-    st.plotly_chart(fig)
-
 def plot_volume(data):
     fig = px.bar(data, x=data.index, y='Volume', title="Trading Volume", template="plotly_dark")
     st.plotly_chart(fig)
@@ -121,8 +116,8 @@ if not data.empty:
     st.subheader(f"Stock Data for {ticker}")
     st.write(data.tail())
 
-    st.subheader("Candlestick Chart")
-    plot_candlestick(data)
+    st.subheader("Candlestick + Indicators")
+    plot_candles_stick_bar(data, title=ticker)
 
     st.subheader("Volume Chart")
     plot_volume(data)
